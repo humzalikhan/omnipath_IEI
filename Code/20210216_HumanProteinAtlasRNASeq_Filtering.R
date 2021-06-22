@@ -22,7 +22,7 @@ theme_manish_legend<-function(legend){
   theme_manish(legend=legend)
 }
 
-List<-read_csv("20201208_NovelPIDCandidateGenes_nopLI_Filter.csv") %>% 
+List<-read_csv("/Users/humzakhan/Desktop/Khan_Butte_Supplement/Lists/202105_Lists/202105_NovelIEICandidateGenes_nopLI_Filter.csv") %>% 
   dplyr::select(-X1) %>% 
   rename(Gene=AssociatedGene)
 
@@ -33,6 +33,11 @@ listEnsGeneName <- getBM(filters = "external_gene_name",
                          values = List$Gene, mart = mart) %>% as_tibble()
 
 colnames(listEnsGeneName)<-c("ENSGene","Gene")
+
+List[List$Gene=="1-Mar",]$Gene<-'MARCH1'
+List[List$Gene=="10-Mar",]$Gene<-'MARCH10'
+List[List$Gene=="3-Mar",]$Gene<-'MARCH3'
+List[List$Gene=="9-Sep",]$Gene<-'SEPT9'
 
 length(unique(List$Gene))
 List2<-List %>% merge(listEnsGeneName,all.x=T) %>% as_tibble()
@@ -45,6 +50,8 @@ RNAseqBloodCell<-read_tsv("~/Downloads/rna_blood_cell.tsv") %>% rename(ENSGene=G
 Merged<-List2 %>% merge(RNAseqBloodCell,all.x=T,by='Gene') %>% as_tibble()
 
 MergedMinusNonCoding<-Merged %>% as_tibble() %>% filter(!is.na(TPM))
+
+NonCoding <-Merged %>% as_tibble() %>% filter(is.na(TPM)) %>% dplyr::select(Gene,InItan,Pathway1,Pathway2,BothPathways) %>% unique()
 
 List<-List %>% mutate(RNASeq=Gene %in%MergedMinusNonCoding$Gene)
 
@@ -62,22 +69,22 @@ nrow(MergedMinusNonCoding %>% filter(TPM2>2))/nrow(MergedMinusNonCoding)
 
 RNASeqList<-MergedMinusNonCoding %>% split(list(MergedMinusNonCoding$Cell)) %>% map(function(x){x %>% dplyr::select(-c(ENSGene.x,ENSGene.y)) %>% unique()})
 
-setwd('/Users/humzakhan/Desktop/OmniPath_PID/20210216_HumanProteomeRNASeq')
+setwd('/Users/humzakhan/Desktop/OmniPath_PID/20210525_Revision1Figs')
 
 RNASeqList %>% map(function(x) x %>% dplyr::select(Gene, TPM) %>% unique())
 
-RNASeqList %>% map(function(x){x %>% filter(TPM>1) %>% dplyr::select(Gene, TPM,Cell) %>% unique()}) %>% 
-  map(function(x){write.csv(x,paste("20210216_",unique(x$Cell),"FilteredGenes.csv",sep=""))})
+# RNASeqList %>% map(function(x){x %>% filter(TPM>1) %>% dplyr::select(Gene, TPM,Cell) %>% unique()}) %>% 
+#   map(function(x){write.csv(x,paste("20210216_",unique(x$Cell),"FilteredGenes.csv",sep=""))})
 
 #RNASeqListFiltered$`naive B-cell` %>% filter(Gene=="DLEU1")
 
-pidList<-read_xlsx("20210216_IEIListRNASeq.xlsx") %>% rename(Gene=`Genetic defect`)
+pidList<-read_xlsx("/Users/humzakhan/Desktop/Khan_Butte_Supplement/Lists/ConfirmedPIDList/20210216_IEIListRNASeq.xlsx") %>% rename(Gene=`Genetic defect`)
 
-genes<-read_xlsx("20210216_IEIListRNASeq.xlsx") %>% as_tibble() %>% dplyr::select('Genetic defect')
+genes<-pidList %>% as_tibble() %>% dplyr::select('Gene')
 genes<-unique(genes)  
   
-RNAseqBloodCell %>% filter(Gene=="TRA")
-RNAseqBloodCell %>% filter(ENSGene=="ENSG00000277734") 
+# RNAseqBloodCell %>% filter(Gene=="TRA")
+# RNAseqBloodCell %>% filter(ENSGene=="ENSG00000277734") 
 
 
 unique(RNAseqBloodCell$Cell)
@@ -101,6 +108,8 @@ RNAseqBloodCellMeans<-RNAseqBloodCell %>% group_by(CellType, Gene) %>% summarise
 RNAseqBloodCellMeans %>% split(list(RNAseqBloodCellMeans$CellType)) %>%
   map(function(x) {x %>% filter(mean>2)}) %>% 
   map(function(x) nrow(x)/(nrow(RNAseqBloodCellMeans)/6)*100)
+
+#percentiles figs3
   
 #FIG S3
 RNAseqBloodCellMeans %>% filter(CellType!="Total PBMC") %>% 
@@ -116,11 +125,11 @@ RNAseqBloodCellMeans %>% filter(CellType!="Total PBMC") %>%
   xlab("Transcripts per Million (TPM) + 1")+
   ylab("Number of Genes")+
   ggtitle("RNAseq Expression of HPA-Recorded Genes")+
-  #geom_vline(xintercept = 1)+
+  geom_vline(xintercept = 2)+
   NULL
 
 ggsave("AllGenes.png",height=50,width=60,units = "mm",dpi=3000)
-
+  
 
 #FIG S4
 !is.na(mean)
@@ -128,8 +137,6 @@ ggsave("AllGenes.png",height=50,width=60,units = "mm",dpi=3000)
 RNAseqPID<-merge(RNAseqBloodCell,pidList,all.y=T)
 (RNAseqPID %>% filter(is.na(TPM)) %>% as_tibble())$Gene
 RNAseqPID %>% as_tibble()
-# IGHM, TRAC, and IGKC not included... weird, ask manish about this 
-
 #RNU4ATAC, TERC is noncoding
 
 
@@ -156,18 +163,20 @@ RNAseqPIDSum %>% summarise(mean=mean(mean)) %>% filter(mean==1)
 # 0 TPM in all immune cell types: AIRE, complement (CFHR too), ALPI: brush border enzyme for intestinal host defense, 
 # CFTR, ficolin (complement activator thru lectin pathway), 
 # IL17F-->didnt look at activated T cells
-x
 
 
-brewer<-c("#8DD3C7","#FFFFB3" , "#BEBADA", "#FB8072" , "#80B1D3" ,"#B3DE69","#FDB462" , "#FCCDE5" ,"#D9D9D9")
+unique(RNAseqBloodCell$Cell)
+
+
+brewer<-c("#8DD3C7","#F6CF4B" , "#BEBADA", "#FB8072" , "#80B1D3" ,"#B3DE69","#FDB462" , "#FCCDE5" ,"#D9D9D9")
 ggplot(RNAseqPIDSum %>% filter(CellType!='Total PBMC',!is.na(`Major category`)),aes(x=mean,fill=`Major category`))+
-  geom_histogram(bins=400)+
+  geom_histogram(bins=30)+
   scale_x_log10(breaks=c(1,100,1000,10000),labels=c(1,100,1000,10000))+
   facet_wrap(CellType~.,strip.position = "top",nrow =5)+
   geom_vline(xintercept = 2)+
   theme_manish()+
   theme(axis.text.x = element_text(size=2.5),axis.text.y = element_text(size=3),axis.title.y = element_text(size=5),
-        axis.title.x = element_text(size=5),legend.text = element_text(size=2),legend.key.size = unit(0, "mm"),
+        axis.title.x = element_text(size=5),legend.text = element_text(size=2),legend.key.size = unit(1, "mm"),
         legend.title = element_text(size=2),
         plot.title = element_text(size=5), strip.text.x = element_blank())+
   xlab("Transcripts per Million (TPM) + 1")+
@@ -225,7 +234,7 @@ RNAseqPIDSum %>% filter(grepl("1",`Major category`), CellType!='Total PBMC') %>%
 ggsave("SCIDCIDGenes.png",height=50,width=60,units = "mm",dpi=3000)
 
 
-brewer<-c("#FFFFB3")
+brewer<-c("#F6CF4B")
 RNAseqPIDSum %>% filter(grepl("3",`Major category`), CellType=='B cell') %>% 
   ggplot(aes(x=mean,fill=`Major category`))+
   geom_histogram(bins=34)+
@@ -252,5 +261,66 @@ ggsave("PADGenes.png",height=50,width=60,units = "mm",dpi=3000)
 # data.frame(table(List$Gene)) %>% filter(Freq!=1)
 # List %>% filter(Gene=="HLA-DPB1")
 # List %>% filter(Gene=="RBL1")
- 
- 
+
+# -------
+
+# myeloid<-c("monocyte","eosino","basophil","neutrophil")
+# tcell<-c("T-cell","T-reg")
+# bcell<-c("B-cell")
+
+MergedMinusNonCoding<-MergedMinusNonCoding %>% mutate(CellType=case_when(
+  grepl(paste(bcell,collapse = "|"),Cell) ~ "B cell",
+  grepl(" DC",Cell) ~ "Dendritic Cell",
+  grepl(paste(myeloid,collapse = "|"),Cell) ~ "Myeloid",
+  grepl(paste(tcell,collapse="|"),Cell) ~ "T cell",
+  grepl("NK-cell",Cell) ~ "NK cell",
+  grepl("total",Cell) ~ "Total PBMC"
+), TPM2=TPM+1) %>% dplyr::select(-c(ENSGene.x,ENSGene.y))
+
+
+MergedMinusNonCoding %>% filter(Cell=="total PBMC") %>% unique() %>% filter(TPM>1)
+
+MergedMinusNonCoding %>% filter(Cell!="total PBMC") %>% group_by(Gene) %>% unique() %>% 
+  summarise(mean=mean(TPM)) %>% filter(mean>1)
+
+
+Groups<-MergedMinusNonCoding %>% filter(Cell!="total PBMC") %>% group_by(CellType,Gene) %>% 
+  summarise(mean=mean(TPM)) 
+
+
+
+setwd("/Users/humzakhan/Desktop/Khan_Butte_Supplement/Lists/202105_Lists")
+
+Groups %>% split(Groups$CellType) %>% map(function(x) {x %>% filter(mean>1)}) %>% 
+  map(function(x) {x %>% merge(List,by='Gene') %>% dplyr::select(CellType,Gene, mean, InItan, Pathway1,Pathway2,BothPathways) %>% bind_rows(NonCoding)}) %>% 
+  map(function(x){write.csv(x,paste("202105_",unique(na.omit(x$CellType)),"FilteredGenes.csv",sep=""))})
+
+# last thing: overall immune cell 
+
+#MergedMinusNonCoding %>% 
+  
+RNAseqPID %>% as_tibble() %>% dplyr::select(Gene, Cell, TPM, CellType) %>% unique() %>% filter(Cell=="total PBMC") %>% 
+  ggplot(aes(x=TPM))+
+  geom_histogram(bins=400)
+
+RNAseqPID %>% as_tibble() %>% dplyr::select(Gene, Cell, TPM, CellType) %>% unique() %>% filter(Cell=="total PBMC",TPM==0) %>% View()
+
+RNAseqPID %>% as_tibble() %>% dplyr::select(Gene, Cell, TPM, CellType) %>%  filter(Cell!="total PBMC") %>% unique() %>% group_by(Gene) %>% 
+ summarise(mean=mean(TPM)) %>% filter(mean==0) %>% View()
+
+MergedMinusNonCoding %>% filter(Cell!="total PBMC") %>% unique() %>% group_by(Gene) %>% 
+  summarise(mean=mean(TPM)) %>% filter(mean!=0) %>% merge(List,by="Gene") %>% dplyr::select(Gene, mean, pLI, InItan,Pathway1, Pathway2, BothPathways) %>% 
+  bind_rows(NonCoding) %>% 
+  write.csv("202105_ImmuneCellTxnFilteredGenes.csv") 
+
+MergedMinusNonCoding %>% filter(Cell=="total PBMC") %>% unique() %>% filter(TPM!=0) #PBMC doesnt have a neutro, baso, etc
+
+unique(MergedMinusNonCoding)
+
+bcell<-read_csv("/Users/humzakhan/Desktop/Khan_Butte_Supplement/Lists/CellSpecificLists/20210216_BcellFilteredGenes.csv")
+bcell %>% dplyr::select(Gene) %>% unique() %>% nrow()
+
+RNAseqBloodCell %>% filter(Gene=="BACH2") %>% group_by(CellType) %>% summarise(mean=mean(TPM)) # expressed in naive T cells 
+
+#RNAseqPID %>% filter(Gene=="BACH2") %>% as_tibble()
+

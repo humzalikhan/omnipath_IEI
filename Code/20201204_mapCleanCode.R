@@ -3,7 +3,7 @@ library(tidyverse)
 library(readxl)
 library(rmutil)
 library(OmnipathR)
-library(biomaRt)
+#library(biomaRt)
 library(HGNChelper)
 library(RColorBrewer)
 library(tidyr)
@@ -52,18 +52,20 @@ theme_humza_legend <- function() {
     theme(strip.background = element_rect(size=rel(0.25)) )
 }
 
-gNOMADpLIs<-read_tsv("/pLI_GDI_Data/gNOMAD_pLI.tsv")
+gNOMADpLIs<-read_tsv("/Users/humzakhan/Desktop/Khan_Butte_Supplement/pLI_GDI/gNOMAD_pLI.tsv")
 
 # import data -------
-pidList<-read_xlsx("~/Downloads/PID_Genes_FilteredForGenes_ChrRemoved.xlsx")
+pidList<-read_xlsx("/Users/humzakhan/Desktop/Khan_Butte_Supplement/Lists/ConfirmedPIDList/PID_Genes_FilteredForGenes_ChrRemoved.xlsx")
 
-genes<-read_xlsx("~/Downloads/PID_Genes_FilteredForGenes_ChrRemoved.xlsx") %>% as_tibble() %>% dplyr::select('Genetic defect')
-genes<-unique(genes)
+genes<-pidList %>% as_tibble() %>% dplyr::select('Genetic defect')
+genes<-unique(genes) %>% na.omit()
 
 colnames(genes)<-"ConfirmedPIDGene"
 
 # PTM -----
-phosphoInteractions <- import_omnipath_enzsub(resources=c("SIGNOR")) #use database freeze
+#phosphoInteractions <- import_omnipath_enzsub(resources=c("SIGNOR")) #use database freeze
+
+phosphoInteractions<-read_csv("/Users/humzakhan/Desktop/Khan_Butte_Supplement/Omnipath_DatabaseFreeze/20201208_PTMData.csv")
 
 pidGeneAsKinase<-as_tibble()
 for(i in c(1:nrow(genes))) {
@@ -97,7 +99,9 @@ pidGeneAsKinase2$InteractionType<-"PIDGeneIsPhosphoKinase"
 colnames(pidGeneAsKinase2)<-c("PIDGene","Target","InteractionType")
 
 #transcription factor --------
-tfInteractions<-import_dorothea_interactions() #use database freeze
+#tfInteractions<-import_dorothea_interactions() #use database freeze
+
+tfInteractions<-read_csv("/Users/humzakhan/Desktop/Khan_Butte_Supplement/Omnipath_DatabaseFreeze/20201208_TFData.csv")
 
 pidGeneAsTF<-as_tibble()
 for(i in 1:nrow(genes)){
@@ -248,25 +252,29 @@ for(i in c(1:nrow(TotalInteractions))){
   TotalInteractions[i,]$Group<-x
 }
 
+TotalInteractions
+
+TotalInteractions 
+
 # pathways -----
-
+a<-Sys.time()
 # Omnipath signaling
-ppInteractions<-import_omnipath_interactions() #use database freeze
-
-ppInteractionsTib<-ppInteractions %>% as_tibble()
+#ppInteractionsOmniimport<- import_omnipath_interactions() #use database freeze
+ppInteractions<-read_csv("/Users/humzakhan/Desktop/Khan_Butte_Supplement/Omnipath_DatabaseFreeze/20201208_OmniPathData.csv") %>% dplyr::select(-X1)
 
 # all together
 
 OPI_g = interaction_graph(interactions = ppInteractions)
 
 makePathsEasier <- function(fromGene,toGene) {
-  
+  b<-Sys.time()
   x<-all_shortest_paths(OPI_g,from = fromGene,to=toGene)
-  #print(x)
   placeholder<-NULL
   if(length(x$res)!=0){
     for(i in c(1:length(x$res))){
+     
       y<-x$res[[i]] %>% as.integer() %>% as_tibble() %>% dplyr::mutate(Gene=vertex_attr(OPI_g,index=V(OPI_g))$name[value])
+      
       y$Pathway<-i
       y<-y %>% dplyr::mutate(distance=dplyr::row_number())
       y<-y %>% dplyr::mutate(DistFromStart=max(y$distance))
@@ -275,8 +283,29 @@ makePathsEasier <- function(fromGene,toGene) {
     }
     placeholder$Start<-fromGene
     placeholder$End<-toGene
+    a<-Sys.time()
+    print(a-b)
     return(placeholder)
   }
+}
+
+makePathsEvenEasier <- function(fromGene,toGene) {
+  
+ # a<-Sys.time()
+  x<-all_shortest_paths(OPI_g,from = fromGene,to=toGene)
+ # c<-Sys.time()
+  #print(paste("allshortpath",c-a))
+
+  if(length(x$res)!=0){
+    df <- as.data.frame(t(sapply(x$res, as_ids)))
+    cols<-colnames(df)
+    last<-cols[length(cols)]
+    df<-df %>% mutate(DistFromStart=ncol(df)) %>%  mutate(Pathway=row_number(),Start=fromGene,End=toGene) 
+    df<-df %>% pivot_longer(cols=!c(DistFromStart,Pathway,Start,End)) %>% rename(distance=name,Gene=value) %>% mutate(distance=substr(distance,2,nchar(distance)))
+    
+    return(df)
+    }
+  return(NULL)
 }
 
 genesInDatabase<-as_tibble()
@@ -299,7 +328,7 @@ geneVector<-as.vector(genesInDatabase$Gene)
 SignalPathways<-as_tibble()
 y<-Sys.time()
 for (i in geneVector){
-  z<-map_dfr(geneVector,~makePathsEasier(.,i))
+  z<-map_dfr(geneVector,~makePathsEvenEasier(.,i))
   SignalPathways<-rbind(SignalPathways,z)
 }
 b<-Sys.time()
@@ -362,23 +391,23 @@ fixedGenes<-as.vector(fixedGenes$X.FANCG.)
 
 SignalPathways2<-as_tibble()
 for (i in geneVector){
-  z<-map_dfr(fixedGenes,~makePathsEasier(.,i))
+  z<-map_dfr(fixedGenes,~makePathsEvenEasier(.,i))
   SignalPathways2<-rbind(SignalPathways2,z)
 }
 
 SignalPathways3<-as_tibble()
 for (i in fixedGenes){
-  z<-map_dfr(geneVector,~makePathsEasier(.,i))
+  z<-map_dfr(geneVector,~makePathsEvenEasier(.,i))
   SignalPathways3<-rbind(SignalPathways3,z)
 }
 
 SignalPathways4<-as_tibble()
 for (i in fixedGenes){
-  z<-map_dfr(fixedGenes,~makePathsEasier(.,i))
+  z<-map_dfr(fixedGenes,~makePathsEvenEasier(.,i))
   SignalPathways4<-rbind(SignalPathways4,z)
 }
 
-colnames(SignalPathways2)[5]<-"DistFromStart"
+#colnames(SignalPathways2)[5]<-"DistFromStart"
 
 names(pidList)[names(pidList) == 'End'] <- 'Start'
 
@@ -417,7 +446,7 @@ Pathways2 <- Pathways2 %>%
 
 # signal pathways 3
 
-colnames(SignalPathways3)[5]<-"DistFromStart"
+#colnames(SignalPathways3)[5]<-"DistFromStart"
 
 #names(pidList)[names(pidList) == 'Genetic defect'] <- 'Start'
 
@@ -459,8 +488,7 @@ Pathways3 <- Pathways3 %>%
 
 # pathways 4 --------
 
-colnames(SignalPathways4)[5]<-"DistFromStart"
-
+#colnames(SignalPathways4)[5]<-"DistFromStart"
 #names(pidList)[names(pidList) == 'Genetic defect'] <- 'Start'
 
 names(SignalPathways4)[names(SignalPathways4) == 'End'] <- 'Approved.Symbol'
@@ -478,8 +506,6 @@ names(y)[names(y) == 'Symbol'] <- 'StartSymbolChanged'
 SignalPathways4<-y %>% as_tibble()
 
 names(pidList)[names(pidList) == 'Start'] <- 'EndSymbolChanged'
-
-#fix this finish up and remake graphs
 
 newtable <- merge(SignalPathways4,pidList, by  = "EndSymbolChanged",all.x=T) 
 
@@ -577,15 +603,17 @@ toBind2<-PathwaysTotal %>% dplyr::select(gene)
 
 boundAssociatedGenes<-unique(bind_rows(toBind1,toBind2))
 
+boundAssociatedGenes<-boundAssociatedGenes %>% mutate(Pathway1=gene %in% TotalInteractions$Target,Pathway2=(gene %in% PathwaysTotal$gene|gene%in% PathwaysTotal$gene))
+
 boundAssociatedGenes<-boundAssociatedGenes %>% dplyr::mutate(PIDGene=gene %in% pidList$Start)
 
-boundAssociatedGenes %>% filter(PIDGene=="FALSE")  #1835 new genes; 9/22 became 2839, 2512 10/6, 2504 10/26, 2531 12/8 (pathway 4)
+boundAssociatedGenes %>% filter(PIDGene=="FALSE")  # 2531
 boundAssociatedGenes %>% filter(PIDGene=="TRUE") 
 
 length(unique(c(unique(TotalInteractions$PIDGene),
                 unique(PathwaysTotal$Start),
                 unique(PathwaysTotal$End))))
-#333 PID genes analyzed
+#339 PID genes analyzed
 
 itanList<-read_xlsx("~/Downloads/ITAN_PIDList.xlsx")
 
@@ -610,21 +638,32 @@ novelGenes<-unique(novelGenes) %>% as_tibble()
 
 novelGenes %>% filter(AssociatedGene=="TLR9")
 novelGenes %>% filter(AssociatedGene=="CKS1B")
-#novelGenes %>% filter(AssociatedGene=="LSP1")
-#novelGenes %>% filter(AssociatedGene=="RBL1")
-
+novelGenes %>% filter(AssociatedGene=="RBL1")
 
 novelGenes<-novelGenes[(novelGenes$pLI<.00001|novelGenes$AssociatedGene!="TLR9" ),]
 novelGenes<-novelGenes[(!is.na(novelGenes$pLI)|novelGenes$AssociatedGene!="CKS1B" ),]
 novelGenes<-novelGenes[(!is.na(novelGenes$pLI)|novelGenes$AssociatedGene!="LSP1" ),]
-#novelGenes<-novelGenes[(novelGenes$pNull<.1|novelGenes$AssociatedGene!="RBL1" ),]
+novelGenes<-novelGenes[(novelGenes$pNull<.1|novelGenes$AssociatedGene!="RBL1" ),]
 
-setwd("/Users/humzakhan/Desktop/OmniPath_PID/20201208_FinalGenes")
-write.csv(novelGenes,"20201208_NovelPIDCandidateGenes_nopLI_Filter.csv")
+novelGenes<-novelGenes %>% mutate(InItan= AssociatedGene %in% itanList$`Predicted PID gene candidate`) %>% 
+  mutate(InItan=case_when(InItan=="TRUE"~"KNOWN",InItan=="FALSE"~"NEW"))
 
-novelGenespLI<-novelGenes %>% filter(pLI<.9)
+# setwd("/Users/humzakhan/Desktop/OmniPath_PID/20201208_FinalGenes")
+# write.csv(novelGenes,"20201208_NovelPIDCandidateGenes_nopLI_Filter.csv")
 
-write.csv(novelGenespLI,"20201208_NovelPIDCandidateGenes_pLI_Filter.csv")
+setwd("/Users/humzakhan/Desktop/Khan_Butte_Supplement/Lists/202105_Lists")
+
+novelGenes<-novelGenes %>% mutate(Pathway1=AssociatedGene %in% TotalInteractions$Target,
+                      Pathway2=(AssociatedGene %in% PathwaysTotal$gene|AssociatedGene%in% PathwaysTotal$gene))
+
+novelGenes<-novelGenes %>% mutate(BothPathways=(Pathway1==TRUE&Pathway2==TRUE))
+
+write.csv(novelGenes,"202105_NovelIEICandidateGenes_nopLI_Filter.csv")
+
+novelGenespLI<-novelGenes %>% filter(pLI>.9)
+write.csv(novelGenespLI,"202105_NovelIEICandidateGenes_HighpLI_Filter.csv")
+
+#write.csv(novelGenespLI,"20201208_NovelPIDCandidateGenes_pLI_Filter.csv")
 
 i<-unique(c(unique(PathwaysTotal$End),unique(PathwaysTotal$Start),unique(TotalInteractions$PIDGene)))
 
@@ -662,3 +701,6 @@ ppInteractionsTib
 write.csv(phosphoInteractions,"20201208_PTMData")
 write.csv(tfInteractions,"20201208_TFData")
 write.csv(ppInteractionsTib,"20201208_OmniPathData")
+
+
+### HLA-DPB1 and HLA-DRB3 manually merged https://www.ncbi.nlm.nih.gov/gene/3125

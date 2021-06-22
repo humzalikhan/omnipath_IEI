@@ -85,7 +85,7 @@ RNAseqBloodCell %>% filter(Gene=="DRB4") # no HLA-DRB4
 
 #CEMIP2 -> TMEM2
 # DIPK2B -> CXorf36
-# HLA-DRB3 -> HLA-DPB1 
+# HLA-DRB3 -> HLA-DPB1 (https://www.genecards.org/cgi-bin/carddisp.pl?gene=HLA-DRB3)
 # TENT4A -> PAPD7
 # GPX1, OFCC1, and HLA-DRB4 protein coding but not found
 

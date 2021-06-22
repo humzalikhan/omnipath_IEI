@@ -54,7 +54,7 @@ gNOMADpLIs<-read_tsv("/pLI_GDI_Data/gNOMAD_pLI.tsv")
 # import data -------
 pidList<-read_xlsx("PID_Genes_FilteredForGenes_ChrRemoved.xlsx")
 
-genes<-read_xlsx("PID_Genes_FilteredForGenes_ChrRemoved.xlsx") %>% as_tibble() %>% dplyr::select('Genetic defect')
+genes<-pidList %>% dplyr::select('Genetic defect')
 genes<-unique(genes)
 
 colnames(genes)<-"ConfirmedPIDGene"
@@ -81,8 +81,9 @@ TotalInteractions <- within(TotalInteractions,
                                                                         decreasing=TRUE))))
 
 brewer <- brewer.pal(4, "Set3")
+brewer[2]<-"#F6CF4B"
 
-setwd("/Users/humzakhan/Desktop/OmniPath_PID/20201207_FinalFigs")
+setwd("/Users/humzakhan/Desktop/OmniPath_PID/20210525_Revision1Figs")
 
 ggplot(TotalInteractions,aes(x=InteractionType,fill=InteractionType))+
   geom_bar()+
@@ -96,7 +97,7 @@ ggplot(TotalInteractions,aes(x=InteractionType,fill=InteractionType))+
   scale_fill_manual(values=brewer)+
   NULL
 
-ggsave("InteractionTypeCounts_TotalInteractions.png",height=50,width=60,units = "mm",dpi=3000)
+ggsave("Fig1a_InteractionTypeCounts_TotalInteractions.png",height=50,width=60,units = "mm",dpi=3000)
 
 TotalInteractions[grepl("Table 1",TotalInteractions$Group),]$Group<-"T1\nCellular and Humoral"
 TotalInteractions[grepl("Table 3",TotalInteractions$Group),]$Group<-"T3\nAb Deficiencies"
@@ -108,7 +109,7 @@ TotalInteractions[grepl("Table 5",TotalInteractions$Group),]$Group<-"T5\nPhagocy
 TotalInteractions[grepl("Table 6",TotalInteractions$Group),]$Group<-"T6\nInnate Immunity Defects"
 TotalInteractions[grepl("Table 8",TotalInteractions$Group),]$Group<-"T8\nComplement Defects"
 
-brewer<-c("#8DD3C7","#FFFFB3" , "#BEBADA", "#FB8072" , "#80B1D3" ,"#B3DE69","#FDB462" , "#FCCDE5" ,"#D9D9D9")
+brewer<-c("#8DD3C7","#F6CF4B" , "#BEBADA", "#FB8072" , "#80B1D3" ,"#B3DE69","#FDB462" , "#FCCDE5" ,"#D9D9D9")
 
 TotalInteractions <- within(TotalInteractions, 
                             InteractionType <- factor(InteractionType, 
@@ -125,13 +126,13 @@ ggplot(tableCountsog,aes(x=Var1,y=Freq,fill=Var1))+
   theme_manish_legend("right")+
   ylab("Number of Associated Genes (repeats included)")+
   xlab("")+
-  theme(axis.text.x = element_text(size=0),axis.title.y = element_text(size=5),plot.title = element_text(size=5),axis.ticks.x = element_blank(),
+  theme(axis.text.x = element_text(size=1),axis.title.y = element_text(size=5),plot.title = element_text(size=5),axis.ticks.x = element_blank(),
         legend.title = element_blank(),legend.text = element_text(size=3),legend.key.size = unit(3, "mm"),legend.key.width = unit(3, "mm"))+
   scale_fill_manual(values=brewer)
 
 ggsave("Discovery1_MajorGroupCounts_TotalInteractions.png",height=50,width=60,units = "mm",dpi=3000)
 
-brewer <- c("#FFFFB3","#BEBADA","#8DD3C7","#FB8072")	
+brewer <- c("#F6CF4B","#BEBADA","#8DD3C7","#FB8072")	
 TotalInt2<-TotalInteractions %>% dplyr::select(PIDGene,InteractionType) %>% unique()	
 TotalInt2 <- within(TotalInt2, 	
                     InteractionType <- factor(InteractionType, 	
@@ -173,7 +174,7 @@ tableCounts<-table(pidList$`Major category`) %>% as.data.frame() %>% as_tibble()
 #tableCounts$Var1<-reorder(tableCounts$Var1,tableCounts$Freq) %>% fct_rev()
 
 #brewer<-c("#80B1D3","#8DD3C7", "#FB8072", "#B3DE69" ,"#FDB462" ,"#FCCDE5", "#FFFFB3" ,"#BEBADA" ,"#D9D9D9")
-brewer<-c("#8DD3C7","#FFFFB3" , "#BEBADA", "#FB8072" , "#80B1D3" ,"#B3DE69","#FDB462" , "#FCCDE5" ,"#D9D9D9")
+brewer<-c("#8DD3C7","#F6CF4B" , "#BEBADA", "#FB8072" , "#80B1D3" ,"#B3DE69","#FDB462" , "#FCCDE5" ,"#D9D9D9")
 ggplot(tableCounts,aes(x=Var1,y=Freq,fill=Var1))+
   geom_col()+
   ggtitle("Confirmed IEI Gene Group")+
@@ -187,7 +188,7 @@ ggplot(tableCounts,aes(x=Var1,y=Freq,fill=Var1))+
 
 ggsave("Fig2aConfirmedPID_GroupCounts.png",height=50,width=60,units = "mm",dpi=3000)
 
-PathwaysTotal<-PathwaysTotal[,1:8] %>% filter(`Start PID Gene`!=`End PID Gene`)
+PathwaysTotal<-PathwaysTotal %>% filter(`Start PID Gene`!=`End PID Gene`)
 
 PathwaysTotal[grepl("Table 1",PathwaysTotal$`Start Gene Group`),]$`Start Gene Group`<-"T1: Cellular and Humoral"
 PathwaysTotal[grepl("Table 3",PathwaysTotal$`Start Gene Group`),]$`Start Gene Group`<-"T3: Ab Deficiencies"
@@ -325,7 +326,7 @@ ggplot(groupCountsunique,aes(x=StartGroup,y=EndGroup,color=StartGroup,size=Freq)
   geom_point(alpha=.6)+
   scale_color_manual(values=brewer)+
   theme(axis.text.x = element_text(angle=-45),legend.position="none")+
-  theme_manish()+
+  theme_manish_legend('right')+
   xlab("Starting Gene Group")+
   ylab("Ending Gene Group")+
   scale_size_continuous(range=c(.5,3))+
@@ -336,13 +337,13 @@ ggplot(groupCountsunique,aes(x=StartGroup,y=EndGroup,color=StartGroup,size=Freq)
 
 ggsave("CircleGraph_Pathway2_NonPIDGenes.png",height=50,width=60,units="mm",dpi=3000)
 
-#making circles ~ 1/3 as small bc only 1/9 as large 
+#making circles ~ 1/3 as small bc only 1/3 as large 
 
 ggplot(groupCountsunique2,aes(x=StartGroup,y=EndGroup,color=StartGroup,size=Freq))+
   geom_point(alpha=.6)+
   scale_color_manual(values=brewer)+
   theme(axis.text.x = element_text(angle=-45),legend.position="none")+
-  theme_manish()+
+  theme_manish_legend('right')+
   xlab("Starting Gene Group")+
   ylab("Ending Gene Group")+
   scale_size_continuous(range=c(.2,1))+
